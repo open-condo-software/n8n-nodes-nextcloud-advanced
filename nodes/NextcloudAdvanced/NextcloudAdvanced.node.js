@@ -209,6 +209,31 @@ class NextcloudAdvanced {
 						},
 					},
 				},
+				{
+					displayName: 'Execution Mode',
+					name: 'executionMode',
+					type: 'options',
+					noDataExpression: true,
+					options: [
+						{
+							name: 'Run Once',
+							value: 'runOnce',
+							description: 'Execute once regardless of input items',
+						},
+						{
+							name: 'Run for Each Item',
+							value: 'forEachItem',
+							description: 'Execute once per input item (default)',
+						},
+					],
+					default: 'forEachItem',
+					description: 'Whether to run the operation once or for each incoming item',
+					displayOptions: {
+						show: {
+							operation: ['listFiles'],
+						},
+					},
+				},
 			],
 		};
 	}
@@ -223,11 +248,13 @@ class NextcloudAdvanced {
 		const password = credentials.password;
 
 		const operation = this.getNodeParameter('operation', 0);
+		const executionMode = this.getNodeParameter('executionMode', 0, 'forEachItem');
 
-		for (let i = 0; i < items.length; i++) {
+		if (executionMode === 'runOnce') {
+			// Run once using the first item's parameters only
 			if (operation === 'listFiles') {
-				let folderPath = this.getNodeParameter('folderPath', i, '/');
-				const returnDirectories = this.getNodeParameter('returnDirectories', i, false);
+				let folderPath = this.getNodeParameter('folderPath', 0, '/');
+				const returnDirectories = this.getNodeParameter('returnDirectories', 0, false);
 
 				if (!folderPath || folderPath.trim() === '') {
 					folderPath = '/';
@@ -250,8 +277,41 @@ class NextcloudAdvanced {
 							size: file.size,
 							lastModified: file.lastModified,
 						},
-						pairedItem: { item: i },
+						pairedItem: { item: 0 },
 					});
+				}
+			}
+		} else {
+			// Default behavior: run for each input item
+			for (let i = 0; i < items.length; i++) {
+				if (operation === 'listFiles') {
+					let folderPath = this.getNodeParameter('folderPath', i, '/');
+					const returnDirectories = this.getNodeParameter('returnDirectories', i, false);
+
+					if (!folderPath || folderPath.trim() === '') {
+						folderPath = '/';
+					}
+					if (!folderPath.startsWith('/')) {
+						folderPath = '/' + folderPath;
+					}
+
+					const files = await listFilesRecursive(webDavUrl, folderPath, user, password);
+
+					for (const file of files) {
+						if (!returnDirectories && file.isDirectory) continue;
+						returnData.push({
+							json: {
+								nodeId: file.nodeId,
+								path: file.path,
+								displayName: file.displayName,
+								isDirectory: file.isDirectory,
+								contentType: file.contentType,
+								size: file.size,
+								lastModified: file.lastModified,
+							},
+							pairedItem: { item: i },
+						});
+					}
 				}
 			}
 		}
