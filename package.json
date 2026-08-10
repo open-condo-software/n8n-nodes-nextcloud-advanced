@@ -1,6 +1,6 @@
 {
   "name": "n8n-nodes-nextcloud-advanced",
-  "version": "0.0.0-development",
+  "version": "0.0.0",
   "description": "n8n community node for advanced Nextcloud operations (recursive file listing, etc.)",
   "keywords": [
     "n8n-community-node-package"
